@@ -1,4 +1,4 @@
-this repository contains the python file and the arduino code 
+this branch contains the python file and the screen shot of the graph and the data file
 # task- 1 ( python)
 using user defined functions and file handling , data was extracted from the csv file given
  the data was then "cleaned" by taking the average of 3 consecutive readings
