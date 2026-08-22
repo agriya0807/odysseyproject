@@ -4,3 +4,6 @@ using user defined functions and file handling , data was extracted from the csv
  the data was then "cleaned" by taking the average of 3 consecutive readings
  lastly the graph was ploted  and animated using the library matplotlib 
 screen shot of graph also added
+
+
+# task-2 arduino(under arduino)
