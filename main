@@ -1,0 +1,61 @@
+
+#include <LiquidCrystal.h>
+
+LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+enum State { OPEN_SEA, ANCHOR_DROPPED, STORM, CHARYBDIS, WRECKED };
+State state = OPEN_SEA, activeHaz = OPEN_SEA;
+
+bool anchor = false, lastBtn = HIGH, ledSt = LOW;
+unsigned long hazStart = 0, lastBlink = 0;
+int lightVal = 600; // Set < 512 in code to test STORM
+
+void setup() {
+  pinMode(7, OUTPUT); pinMode(6, INPUT); pinMode(8, OUTPUT);
+  pinMode(13, OUTPUT); pinMode(9, INPUT_PULLUP);
+  lcd.begin(16, 2);
+}
+
+void loop() {
+  // Read distance & toggle button
+  digitalWrite(7, LOW); delayMicroseconds(2); digitalWrite(7, HIGH); delayMicroseconds(10); digitalWrite(7, LOW);
+  int dist = pulseIn(6, HIGH, 30000) * 0.034 / 2;
+  if (dist == 0) dist = 400;
+
+  bool btn = digitalRead(9);
+  if (lastBtn && !btn) { anchor = !anchor; delay(50); }
+  lastBtn = btn;
+
+  bool inStorm = (lightVal < 512), inCharyb = (dist < 100);
+
+  // FSM Precedence & Wreck Timer
+  if (state != WRECKED) {
+    if (anchor) { state = ANCHOR_DROPPED; activeHaz = OPEN_SEA; }
+    else {
+      if (activeHaz == OPEN_SEA) {
+        if (inStorm) { activeHaz = STORM; hazStart = millis(); }
+        else if (inCharyb) { activeHaz = CHARYBDIS; hazStart = millis(); }
+      }
+      if ((activeHaz == STORM && !inStorm) || (activeHaz == CHARYBDIS && !inCharyb)) activeHaz = OPEN_SEA;
+      state = (activeHaz != OPEN_SEA) ? ((millis() - hazStart >= 5000) ? WRECKED : activeHaz) : OPEN_SEA;
+    }
+  }
+
+  // Outputs
+  lcd.setCursor(0, 0); lcd.print("STATE:          "); lcd.setCursor(7, 0);
+  digitalWrite(13, state == WRECKED); noTone(8);
+
+  switch (state) {
+    case OPEN_SEA:      lcd.print("OPEN SEA"); break;
+    case ANCHOR_DROPPED:lcd.print("ANCHOR");   break;
+    case CHARYBDIS:     lcd.print("CHARYBDIS"); tone(8, 1000); break;
+    case WRECKED:       lcd.print("WRECKED!");  tone(8, 2000); break;
+    case STORM:
+      lcd.print("STORM");
+      if (millis() - lastBlink >= 250) { lastBlink = millis(); ledSt = !ledSt; }
+      digitalWrite(13, ledSt);
+      break;
+  }
+
+  lcd.setCursor(0, 1); lcd.print("Dist: "); lcd.print(dist); lcd.print("cm   ");
+  delay(50);
+}
