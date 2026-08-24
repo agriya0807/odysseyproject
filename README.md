@@ -5,4 +5,4 @@ https://www.tinkercad.com/things/izpl1CYmCNP/editel?returnTo=%2Fdashboard
 
 
 link-2 in case 1 doesnt work:
-https://www.tinkercad.com/things/izpl1CYmCNP-arduino-code-work?sharecode=j5YV_d-FTaSJlFeo3kQbPFcbXjC3IXfMZWxXrSww--8
+https://www.tinkercad.com/things/izpl1CYmCNP-arduino-code-work
