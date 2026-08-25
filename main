@@ -1,0 +1,101 @@
+/* Name: [Your Name] | ID: [Your ID Number] | Task 2 FSM */
+#include <LiquidCrystal.h>
+
+// Hardware Pin Definitions
+LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+const int TRIG_PIN   = 7;
+const int ECHO_PIN   = 6;
+const int BUZZER_PIN = 8;
+const int LED_PIN    = 13;
+const int BUTTON_PIN = 9;
+const int LIGHT_PIN  = A0; // Ambient Light Sensor on Pin A0
+
+// Finite State Machine States
+enum State { OPEN_SEA, ANCHOR_DROPPED, STORM, CHARYBDIS, WRECKED };
+State state = OPEN_SEA, activeHaz = OPEN_SEA;
+
+// System Variables
+bool anchor = false, lastBtn = HIGH, ledSt = LOW;
+unsigned long hazStart = 0, lastBlink = 0;
+const int LIGHT_THRESHOLD = 512; // Values below 512 trigger STORM
+
+void setup() {
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+
+  lcd.begin(16, 2);
+  lcd.clear();
+}
+
+void loop() {
+  // 1. Read Distance & Light Sensor Values
+  digitalWrite(TRIG_PIN, LOW); delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH); delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+  long duration = pulseIn(ECHO_PIN, HIGH, 30000);
+  int dist = (duration > 0) ? (duration * 0.034 / 2) : 400;
+
+  int lightVal = analogRead(LIGHT_PIN); // Reading Phototransistor from A0
+
+  // 2. Read Anchor Button (Debounced Toggle)
+  bool btn = digitalRead(BUTTON_PIN);
+  if (lastBtn && !btn) { anchor = !anchor; delay(50); }
+  lastBtn = btn;
+
+  // 3. Evaluate Hazard Threshold Conditions
+  bool inStorm = (lightVal < LIGHT_THRESHOLD); // True when sensor drops below 512
+  bool inCharyb = (dist < 100);
+
+  // 4. Finite State Machine Logic
+  if (state != WRECKED) {
+    if (anchor) {
+      state = ANCHOR_DROPPED;
+      activeHaz = OPEN_SEA;
+    } else {
+      // First-In Precedence Lock
+      if (activeHaz == OPEN_SEA) {
+        if (inStorm)       { activeHaz = STORM; hazStart = millis(); }
+        else if (inCharyb) { activeHaz = CHARYBDIS; hazStart = millis(); }
+      }
+
+      // Safe Recovery: Return to OPEN SEA if hazard clears before 5 seconds
+      if ((activeHaz == STORM && !inStorm) || (activeHaz == CHARYBDIS && !inCharyb)) {
+        activeHaz = OPEN_SEA;
+      }
+
+      // Check 5-Second Limit to transition to WRECKED
+      state = (activeHaz != OPEN_SEA) ? ((millis() - hazStart >= 5000) ? WRECKED : activeHaz) : OPEN_SEA;
+    }
+  }
+
+  // 5. Output Actuator Control
+  lcd.setCursor(0, 0); lcd.print("STATE:          "); lcd.setCursor(7, 0);
+  digitalWrite(LED_PIN, state == WRECKED);
+  noTone(BUZZER_PIN);
+
+  switch (state) {
+    case OPEN_SEA:       lcd.print("OPEN SEA");  break;
+    case ANCHOR_DROPPED: lcd.print("ANCHOR");    break;
+    case CHARYBDIS:      lcd.print("CHARYBDIS"); tone(BUZZER_PIN, 1000); break;
+    case WRECKED:        lcd.print("WRECKED!");  tone(BUZZER_PIN, 2000); break;
+    case STORM:
+      lcd.print("STORM");
+      // Blink LED continuously every 250ms during STORM
+      if (millis() - lastBlink >= 250) { 
+        lastBlink = millis(); 
+        ledSt = !ledSt; 
+      }
+      digitalWrite(LED_PIN, ledSt);
+      break;
+  }
+
+  // Telemetry Output on Row 2
+  lcd.setCursor(0, 1);
+  lcd.print("L:"); lcd.print(lightVal);
+  lcd.print(" D:"); lcd.print(dist); lcd.print("cm   ");
+
+  delay(50);
+}
