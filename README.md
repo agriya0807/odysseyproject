@@ -6,3 +6,4 @@ using user defined functions and file handling , data was extracted from the csv
 
 
 the main file contains the code and the the ideas file contains rest of the details
+please place the file path from your system for the code to get file
